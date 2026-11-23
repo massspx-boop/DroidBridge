@@ -106,6 +106,9 @@ class MainActivity : Activity() {
         root.addView(actionButton("Discover Wi-Fi Direct Devices • Sender") {
             withWifiDirectPermission { wifiDirect.discoverPeers { msg -> runOnUiThread { status.text = msg } } }
         })
+        root.addView(actionButton("Disconnect Wi-Fi Direct") {
+            wifiDirect.removeGroup { msg -> runOnUiThread { status.text = msg } }
+        })
         root.addView(actionButton("Send File") { pickSendFile() })
         root.addView(actionButton("Choose APK / ZIP to install") { pickInstallFile() })
         root.addView(actionButton("Enable APK installation permission") { requestInstallPermission() })
