@@ -68,15 +68,16 @@ class MainActivity : Activity() {
             setTextColor(0xFF52627A.toInt())
         })
         hostInput = EditText(this).apply {
-            hint = "လက်ခံမည့်ဖုန်း IP ဥပမာ 192.168.1.12"
+            hint = "လက်ခံမည့်ဖုန်း IP|PIN ဥပမာ 192.168.1.12|123456"
             singleLine = true
             textSize = 14f
         }
         root.addView(hostInput)
         root.addView(actionButton("Start Receiver • ဒီဖုန်း IP: ${TransferEngine.localIp(this)}") {
-            TransferEngine.receive(this) { msg -> runOnUiThread { status.text = msg } }
-            status.text = "Receiver started • Port ${TransferEngine.PORT}"
+            val pin = TransferEngine.receive(this) { msg -> runOnUiThread { status.text = msg } }
+            status.text = "RECEIVER READY\nIP: ${TransferEngine.localIp(this)}\nPAIR PIN: $pin\nPort: ${TransferEngine.PORT}"
         })
+        root.addView(actionButton("Stop Receiver") { TransferEngine.stop(); status.text = "Receiver stopped" })
         root.addView(actionButton("Send File") { pickSendFile() })
         root.addView(actionButton("Choose APK / ZIP to install") { pickInstallFile() })
         root.addView(actionButton("Enable APK installation permission") { requestInstallPermission() })
