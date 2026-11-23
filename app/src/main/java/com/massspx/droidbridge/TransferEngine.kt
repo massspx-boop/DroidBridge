@@ -21,6 +21,7 @@ object TransferEngine {
     private const val PBKDF2_ROUNDS = 120_000
     @Volatile private var server: ServerSocket? = null
     @Volatile private var activePin: String? = null
+    @Volatile private var receiverStarting = false
     private val random = SecureRandom()
 
     fun localIp(context: Context): String {
@@ -31,20 +32,23 @@ object TransferEngine {
         } catch (_: Exception) { "Unknown" }
     }
 
+    @Synchronized
     fun receive(context: Context, onStatus: (String) -> Unit): String {
-        if (server?.isClosed == false) return activePin ?: "already-running"
+        if (receiverStarting || server?.isClosed == false) return activePin ?: "starting"
         val pin = (10_000_000 + random.nextInt(90_000_000)).toString()
         activePin = pin
+        receiverStarting = true
         Thread {
             try {
                 val socketServer = ServerSocket(PORT, 8, InetAddress.getByName("0.0.0.0"))
                 server = socketServer
+                receiverStarting = false
                 onStatus("Encrypted receiver ready • Port $PORT")
                 while (!socketServer.isClosed) {
                     val client = socketServer.accept()
                     Thread { receiveOne(context, client, onStatus) }.start()
                 }
-            } catch (e: Exception) { onStatus("Receiver stopped: ${e.message}") }
+            } catch (e: Exception) { receiverStarting = false; onStatus("Receiver stopped: ${e.message}") }
         }.start()
         return pin
     }
@@ -135,6 +139,7 @@ object TransferEngine {
         try { server?.close() } catch (_: Exception) { }
         server = null
         activePin = null
+        receiverStarting = false
     }
 
     fun send(file: File, hostAndPin: String, onStatus: (String) -> Unit) {
