@@ -75,6 +75,16 @@ class WifiDirectController(private val activity: Activity) {
         })
     }
 
+    fun removeGroup(callback: (String) -> Unit) {
+        val m = manager
+        val c = channel
+        if (m == null || c == null) { callback("Wi-Fi Direct မရနိုင်ပါ"); return }
+        m.removeGroup(c, object : WifiP2pManager.ActionListener {
+            override fun onSuccess() { callback("Wi-Fi Direct group disconnected") }
+            override fun onFailure(reason: Int) { callback("Disconnect failed: $reason") }
+        })
+    }
+
     fun unregister() {
         receiver?.let {
             try { activity.unregisterReceiver(it) } catch (_: Exception) { }
