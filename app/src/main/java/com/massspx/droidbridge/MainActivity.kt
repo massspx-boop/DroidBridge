@@ -23,10 +23,26 @@ class MainActivity : Activity() {
     private val apps = mutableListOf<PackageInfo>()
     private val pickSend = 41
     private val pickInstall = 42
+    private lateinit var wifiDirect: WifiDirectController
+    private var afterWifiPermission: (() -> Unit)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         buildUi()
+        wifiDirect = WifiDirectController(this)
+        wifiDirect.onPeers = { peers -> runOnUiThread { showPeerPicker(peers) } }
+        wifiDirect.onConnection = { info ->
+            runOnUiThread {
+                if (info.groupFormed) {
+                    val ownerIp = info.groupOwnerAddress?.hostAddress
+                    if (!ownerIp.isNullOrBlank()) {
+                        hostInput.setText("$ownerIp|")
+                        status.text = "Wi-Fi Direct connected • Group owner: $ownerIp • 8-digit PIN ထည့်ပါ"
+                    }
+                }
+            }
+        }
+        wifiDirect.register()
         loadApps()
         handleIncoming(intent)
     }
@@ -83,6 +99,12 @@ class MainActivity : Activity() {
             TransferEngine.stop()
             stopService(Intent(this, TransferService::class.java))
             status.text = "Receiver stopped"
+        })
+        root.addView(actionButton("Create Wi-Fi Direct Group • Receiver") {
+            withWifiDirectPermission { wifiDirect.createGroup { msg -> runOnUiThread { status.text = msg } } }
+        })
+        root.addView(actionButton("Discover Wi-Fi Direct Devices • Sender") {
+            withWifiDirectPermission { wifiDirect.discoverPeers { msg -> runOnUiThread { status.text = msg } } }
         })
         root.addView(actionButton("Send File") { pickSendFile() })
         root.addView(actionButton("Choose APK / ZIP to install") { pickInstallFile() })
@@ -176,6 +198,49 @@ class MainActivity : Activity() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         startActivity(Intent.createChooser(send, "Share APK bundle"))
+    }
+
+    private fun withWifiDirectPermission(action: () -> Unit) {
+        val permission = if (Build.VERSION.SDK_INT >= 33) {
+            android.Manifest.permission.NEARBY_WIFI_DEVICES
+        } else {
+            android.Manifest.permission.ACCESS_FINE_LOCATION
+        }
+        if (checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            action()
+        } else {
+            afterWifiPermission = action
+            requestPermissions(arrayOf(permission), 73)
+        }
+    }
+
+    @Deprecated("Permission callback")
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 73) {
+            val action = afterWifiPermission
+            afterWifiPermission = null
+            if (grantResults.isNotEmpty() && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                action?.invoke()
+            } else toast("Wi-Fi Direct အတွက် Nearby devices / Location permission လိုအပ်သည်")
+        }
+    }
+
+    private fun showPeerPicker(peers: List<android.net.wifi.p2p.WifiP2pDevice>) {
+        if (peers.isEmpty()) {
+            status.text = "Wi-Fi Direct device မတွေ့သေးပါ။ Discover ထပ်နှိပ်ပါ။"
+            return
+        }
+        val labels = peers.map { device ->
+            "${device.deviceName.ifBlank { "Unknown device" }} • ${device.deviceAddress} • ${device.status}"
+        }.toTypedArray()
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Choose receiving phone")
+            .setItems(labels) { _, which ->
+                wifiDirect.connect(peers[which]) { msg -> runOnUiThread { status.text = msg } }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun pickSendFile() {
@@ -291,8 +356,9 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        wifiDirect.unregister()
         super.onDestroy()
-        // Keep receiver alive until the user explicitly stops it or Android closes the process.
+        // The foreground transfer service owns the receiver lifecycle.
     }
 
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
