@@ -35,6 +35,11 @@ object AiDiagnosisEngine {
     fun hasApiKey(context: Context): Boolean =
         !context.getSharedPreferences(prefs, Context.MODE_PRIVATE).getString("encrypted_api_key", null).isNullOrBlank()
 
+    fun clearApiKey(context: Context) {
+        context.getSharedPreferences(prefs, Context.MODE_PRIVATE).edit().remove("encrypted_api_key").apply()
+        try { KeyStore.getInstance("AndroidKeyStore").apply { load(null); deleteEntry(alias) } } catch (_: Exception) { }
+    }
+
     fun diagnose(context: Context, error: String, callback: (String) -> Unit) {
         val local = DiagnosisEngine.explain(error)
         val key = try { readApiKey(context) } catch (_: Exception) { null }
