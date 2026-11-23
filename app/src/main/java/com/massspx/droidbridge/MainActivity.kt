@@ -74,10 +74,16 @@ class MainActivity : Activity() {
         }
         root.addView(hostInput)
         root.addView(actionButton("Start Receiver • ဒီဖုန်း IP: ${TransferEngine.localIp(this)}") {
+            val service = Intent(this, TransferService::class.java).setAction(TransferService.ACTION_START)
+            if (Build.VERSION.SDK_INT >= 26) startForegroundService(service) else startService(service)
             val pin = TransferEngine.receive(this) { msg -> runOnUiThread { status.text = msg } }
-            status.text = "RECEIVER READY\nIP: ${TransferEngine.localIp(this)}\nPAIR PIN: $pin\nPort: ${TransferEngine.PORT}"
+            status.text = "ENCRYPTED RECEIVER READY\\nIP: ${TransferEngine.localIp(this)}\\n8-DIGIT PAIR PIN: $pin\\nPort: ${TransferEngine.PORT}"
         })
-        root.addView(actionButton("Stop Receiver") { TransferEngine.stop(); status.text = "Receiver stopped" })
+        root.addView(actionButton("Stop Receiver") {
+            TransferEngine.stop()
+            stopService(Intent(this, TransferService::class.java))
+            status.text = "Receiver stopped"
+        })
         root.addView(actionButton("Send File") { pickSendFile() })
         root.addView(actionButton("Choose APK / ZIP to install") { pickInstallFile() })
         root.addView(actionButton("Enable APK installation permission") { requestInstallPermission() })
