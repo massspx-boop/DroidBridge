@@ -69,7 +69,7 @@ class MainActivity : Activity() {
         })
         hostInput = EditText(this).apply {
             hint = "လက်ခံမည့်ဖုန်း IP|PIN ဥပမာ 192.168.1.12|123456"
-            singleLine = true
+            setSingleLine(true)
             textSize = 14f
         }
         root.addView(hostInput)
