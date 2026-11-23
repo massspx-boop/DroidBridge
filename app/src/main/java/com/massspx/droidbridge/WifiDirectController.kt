@@ -25,7 +25,7 @@ class WifiDirectController(private val activity: Activity) {
             addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION)
             addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION)
         }
-        receiver = object : BroadcastReceiver() {
+        val localReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 when (intent.action) {
                     WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION ->
@@ -35,8 +35,13 @@ class WifiDirectController(private val activity: Activity) {
                 }
             }
         }
-        if (Build.VERSION.SDK_INT >= 33) activity.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        else @Suppress("DEPRECATION") activity.registerReceiver(receiver, filter)
+        receiver = localReceiver
+        if (Build.VERSION.SDK_INT >= 33) {
+            activity.registerReceiver(localReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            activity.registerReceiver(localReceiver, filter)
+        }
     }
 
     fun createGroup(callback: (String) -> Unit) {
