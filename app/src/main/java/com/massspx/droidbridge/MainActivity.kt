@@ -79,7 +79,7 @@ class MainActivity : Activity() {
         }
         root.addView(networkTitle)
         root.addView(TextView(this).apply {
-            text = "လက်ခံမည့်ဖုန်းတွင် Start Receiver နှိပ်ပါ။ ပို့မည့်ဖုန်းတွင် IP ထည့်ပြီး Send File ကိုနှိပ်ပါ။ ဖုန်းနှစ်လုံး Wi-Fi တစ်ခုတည်းတွင် ရှိရပါမည်။"
+            text = "လက်ခံမည့်ဖုန်းတွင် Start Receiver နှိပ်ပါ။ ပို့မည့်ဖုန်းတွင် IP ထည့်ပြီး Send File ကိုနှိပ်ပါ။ တူညီသော Wi-Fi သို့မဟုတ် Wi-Fi Direct ဖြင့် ချိတ်ဆက်နိုင်သည်။"
             textSize = 12f
             setTextColor(0xFF52627A.toInt())
         })
