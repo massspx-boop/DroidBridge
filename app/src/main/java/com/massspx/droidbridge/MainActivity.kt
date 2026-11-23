@@ -68,7 +68,7 @@ class MainActivity : Activity() {
             setTextColor(0xFF52627A.toInt())
         })
         hostInput = EditText(this).apply {
-            hint = "လက်ခံမည့်ဖုန်း IP|PIN ဥပမာ 192.168.1.12|123456"
+            hint = "လက်ခံမည့်ဖုန်း IP|PIN ဥပမာ 192.168.1.12|12345678"
             setSingleLine(true)
             textSize = 14f
         }
