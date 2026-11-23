@@ -47,6 +47,16 @@ class MainActivity : Activity() {
         handleIncoming(intent)
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (::status.isInitialized) {
+            val pin = getSharedPreferences("transfer_state", MODE_PRIVATE).getString("receiver_pin", null)
+            if (!pin.isNullOrBlank()) {
+                status.text = "ENCRYPTED RECEIVER ACTIVE\\nIP: ${TransferEngine.localIp(this)}\\n8-DIGIT PAIR PIN: $pin\\nPort: ${TransferEngine.PORT}"
+            }
+        }
+    }
+
     private fun buildUi() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
