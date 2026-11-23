@@ -2,7 +2,7 @@ package com.massspx.droidbridge
 
 object DiagnosisEngine {
     fun explain(raw: String): String {
-        val s = raw.lowercase()
+        val s = raw.lowercase().replace('_', ' ').replace('-', ' ')
         return when {
             "version downgrade" in s || "downgrade" in s -> "ဖုန်းထဲရှိ App ဗားရှင်းက ပိုသစ်နေသည်။ မူလထက်နိမ့်သော version ကို Android က ပိတ်နိုင်သည်။"
             "update incompatible" in s || "signatures do not match" in s || "signature" in s ->
