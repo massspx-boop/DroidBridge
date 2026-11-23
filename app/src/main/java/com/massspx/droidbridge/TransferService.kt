@@ -28,11 +28,16 @@ class TransferService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             TransferEngine.stop()
+            getSharedPreferences("transfer_state", MODE_PRIVATE).edit().remove("receiver_pin").apply()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
         }
         startForeground(NOTIFICATION_ID, buildNotification())
+        val pin = TransferEngine.receive(this) { message ->
+            getSharedPreferences("transfer_state", MODE_PRIVATE).edit().putString("receiver_status", message).apply()
+        }
+        getSharedPreferences("transfer_state", MODE_PRIVATE).edit().putString("receiver_pin", pin).apply()
         return START_STICKY
     }
 
