@@ -5,7 +5,9 @@ import android.content.Intent
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.*
 import androidx.core.content.FileProvider
 import java.io.File
@@ -16,53 +18,86 @@ import java.util.zip.ZipOutputStream
 class MainActivity : Activity() {
     private lateinit var status: TextView
     private lateinit var list: LinearLayout
+    private lateinit var hostInput: EditText
     private val selected = linkedSetOf<String>()
     private val apps = mutableListOf<PackageInfo>()
+    private val pickSend = 41
+    private val pickInstall = 42
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        buildUi()
+        loadApps()
+        handleIncoming(intent)
+    }
+
+    private fun buildUi() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(20, 24, 20, 16)
+            setPadding(18, 22, 18, 12)
             setBackgroundColor(0xFFF4F6FA.toInt())
         }
         root.addView(TextView(this).apply {
             text = "DroidBridge"
-            textSize = 27f
+            textSize = 28f
             setTextColor(0xFF17243A.toInt())
             setTypeface(null, android.graphics.Typeface.BOLD)
         })
         root.addView(TextView(this).apply {
-            text = "Smart APK & File Transfer"
-            textSize = 14f
+            text = "SMART APP • APK • FILE TRANSFER"
+            textSize = 12f
             setTextColor(0xFF52627A.toInt())
         })
         status = TextView(this).apply {
-            text = "Ready • Android ${android.os.Build.VERSION.RELEASE}"
-            setPadding(0, 14, 0, 14)
-            setTextColor(0xFF334155.toInt())
+            text = "Ready"
+            setPadding(0, 12, 0, 10)
+            setTextColor(0xFF26364D.toInt())
         }
         root.addView(status)
-        val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        actions.addView(actionButton("Share file") { pickFile() }, LinearLayout.LayoutParams(0, -2, 1f))
-        actions.addView(actionButton("Refresh apps") { loadApps() }, LinearLayout.LayoutParams(0, -2, 1f))
-        root.addView(actions)
-        root.addView(actionButton("Export selected APKs") { exportSelected() })
-        root.addView(actionButton("Send exported APKs") { shareExports() })
-        root.addView(TextView(this).apply {
-            text = "Installed apps (select one or more)"
+
+        val networkTitle = TextView(this).apply {
+            text = "ဖုန်းချင်း Wi-Fi Transfer"
             textSize = 17f
             setTypeface(null, android.graphics.Typeface.BOLD)
             setTextColor(0xFF17243A.toInt())
-            setPadding(0, 18, 0, 8)
+        }
+        root.addView(networkTitle)
+        root.addView(TextView(this).apply {
+            text = "လက်ခံမည့်ဖုန်းတွင် Start Receiver နှိပ်ပါ။ ပို့မည့်ဖုန်းတွင် IP ထည့်ပြီး Send File ကိုနှိပ်ပါ။ ဖုန်းနှစ်လုံး Wi-Fi တစ်ခုတည်းတွင် ရှိရပါမည်။"
+            textSize = 12f
+            setTextColor(0xFF52627A.toInt())
         })
+        hostInput = EditText(this).apply {
+            hint = "လက်ခံမည့်ဖုန်း IP ဥပမာ 192.168.1.12"
+            singleLine = true
+            textSize = 14f
+        }
+        root.addView(hostInput)
+        root.addView(actionButton("Start Receiver • ဒီဖုန်း IP: ${TransferEngine.localIp(this)}") {
+            TransferEngine.receive(this) { msg -> runOnUiThread { status.text = msg } }
+            status.text = "Receiver started • Port ${TransferEngine.PORT}"
+        })
+        root.addView(actionButton("Send File") { pickSendFile() })
+        root.addView(actionButton("Choose APK / ZIP to install") { pickInstallFile() })
+        root.addView(actionButton("Enable APK installation permission") { requestInstallPermission() })
+
+        root.addView(TextView(this).apply {
+            text = "Installed apps • APK Export"
+            textSize = 17f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            setTextColor(0xFF17243A.toInt())
+            setPadding(0, 16, 0, 4)
+        })
+        val appActions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        appActions.addView(actionButton("Refresh") { loadApps() }, LinearLayout.LayoutParams(0, -2, 1f))
+        appActions.addView(actionButton("Export selected") { exportSelected() }, LinearLayout.LayoutParams(0, -2, 1f))
+        root.addView(appActions)
+        root.addView(actionButton("Share latest APK bundle") { shareExports() })
         val scroll = ScrollView(this)
         list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         scroll.addView(list)
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
-        loadApps()
-        handleIncoming(intent)
     }
 
     private fun actionButton(label: String, action: () -> Unit): Button =
@@ -79,22 +114,21 @@ class MainActivity : Activity() {
             .sortedBy { pm.getApplicationLabel(it.applicationInfo!!).toString().lowercase() })
         for (info in apps) {
             val appInfo = info.applicationInfo ?: continue
-            val row = CheckBox(this).apply {
+            list.addView(CheckBox(this).apply {
                 text = "${pm.getApplicationLabel(appInfo)}\n${info.packageName}"
-                textSize = 14f
+                textSize = 13f
                 setTextColor(0xFF1E293B.toInt())
-                setPadding(4, 8, 4, 8)
+                setPadding(4, 6, 4, 6)
                 setOnCheckedChangeListener { _, checked ->
                     if (checked) selected.add(info.packageName) else selected.remove(info.packageName)
                 }
-            }
-            list.addView(row)
+            })
         }
-        status.text = "Found ${apps.size} apps • Select apps to export"
+        status.text = "Installed apps found: ${apps.size} • Selected: ${selected.size}"
     }
 
     private fun exportSelected() {
-        if (selected.isEmpty()) { toast("Select at least one app"); return }
+        if (selected.isEmpty()) { toast("အနည်းဆုံး App တစ်ခုရွေးပါ"); return }
         try {
             val outDir = File(getExternalFilesDir(null), "DroidBridge-Exports").apply { mkdirs() }
             val output = File(outDir, "DroidBridge_APKs_${System.currentTimeMillis()}.zip")
@@ -107,61 +141,116 @@ class MainActivity : Activity() {
                     paths.distinct().forEachIndexed { index, path ->
                         val file = File(path)
                         if (file.exists() && file.isFile) {
-                            val prefix = if (index == 0) "base" else "split_${index}"
-                            zip.putNextEntry(ZipEntry("$pkg/$prefix.apk"))
+                            val name = if (index == 0) "base.apk" else "split_${index}.apk"
+                            zip.putNextEntry(ZipEntry("$pkg/$name"))
                             FileInputStream(file).use { it.copyTo(zip) }
                             zip.closeEntry()
                         }
                     }
                 }
             }
-            status.text = "Export complete: ${output.length() / 1024} KB"
-            toast("APK bundle saved")
+            status.text = "APK bundle ready • ${output.length() / 1024} KB • SHA-256 ${TransferEngine.sha256(output).take(16)}…"
+            toast("APK bundle ထုတ်ယူပြီးပါပြီ")
         } catch (e: Exception) {
             status.text = "Export failed: ${e.message}"
-            toast("Could not export APKs")
+            toast("APK ထုတ်ယူမရပါ")
         }
     }
 
     private fun shareExports() {
         val dir = File(getExternalFilesDir(null), "DroidBridge-Exports")
         val file = dir.listFiles()?.maxByOrNull { it.lastModified() }
-        if (file == null) { toast("Export APKs first"); return }
+        if (file == null) { toast("အရင် APK Export လုပ်ပါ"); return }
         val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
-        val intent = Intent(Intent.ACTION_SEND).apply {
+        val send = Intent(Intent.ACTION_SEND).apply {
             type = "application/zip"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        startActivity(Intent.createChooser(intent, "Send APK bundle"))
+        startActivity(Intent.createChooser(send, "Share APK bundle"))
     }
 
-    private fun pickFile() {
+    private fun pickSendFile() {
         val i = Intent(Intent.ACTION_GET_CONTENT).apply { type = "*/*"; addCategory(Intent.CATEGORY_OPENABLE) }
-        startActivityForResult(i, 41)
+        startActivityForResult(i, pickSend)
     }
 
-    @Deprecated("Legacy callback retained for Android 8 compatibility")
+    private fun pickInstallFile() {
+        val i = Intent(Intent.ACTION_GET_CONTENT).apply {
+            type = "*/*"
+            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/vnd.android.package-archive", "application/zip", "application/x-zip-compressed"))
+            addCategory(Intent.CATEGORY_OPENABLE)
+        }
+        startActivityForResult(i, pickInstall)
+    }
+
+    private fun requestInstallPermission() {
+        if (Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls()) {
+            startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+        } else toast("Install permission ရရှိပြီးပါပြီ")
+    }
+
+    @Deprecated("Legacy picker callback supports Android 8+")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 41 && resultCode == RESULT_OK) {
-            data?.data?.let { uri ->
-                val send = Intent(Intent.ACTION_SEND).apply {
-                    type = contentResolver.getType(uri) ?: "*/*"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                startActivity(Intent.createChooser(send, "Share with"))
-            }
+        if (resultCode != RESULT_OK) return
+        val uri = data?.data ?: return
+        when (requestCode) {
+            pickSend -> sendUri(uri)
+            pickInstall -> installUri(uri)
         }
     }
 
-    @Suppress("DEPRECATION")
+    private fun sendUri(uri: Uri) {
+        try {
+            val name = queryName(uri) ?: "shared_file"
+            val file = File(cacheDir, name)
+            contentResolver.openInputStream(uri)?.use { input -> file.outputStream().use { input.copyTo(it) } }
+                ?: throw IllegalStateException("ဖိုင်ဖတ်မရပါ")
+            val host = hostInput.text.toString().trim()
+            if (host.isBlank()) { toast("လက်ခံမည့်ဖုန်း IP ထည့်ပါ"); return }
+            TransferEngine.send(file, host) { msg -> runOnUiThread { status.text = msg } }
+            status.text = "Sending: $name"
+        } catch (e: Exception) { status.text = "File error: ${e.message}" }
+    }
+
+    private fun installUri(uri: Uri) {
+        try {
+            val name = queryName(uri) ?: "selected_file"
+            val file = File(cacheDir, name)
+            contentResolver.openInputStream(uri)?.use { input -> file.outputStream().use { input.copyTo(it) } }
+                ?: throw IllegalStateException("ဖိုင်ဖတ်မရပါ")
+            if (name.endsWith(".zip", true)) {
+                InstallerEngine.installBundle(this, file) { msg -> runOnUiThread { status.text = msg } }
+            } else if (name.endsWith(".apk", true)) {
+                val report = ApkCompatibility.inspect(this, file)
+                status.text = "Package: ${report.packageName}\nVersion: ${report.versionName}\nminSdk: ${report.minSdk} • targetSdk: ${report.targetSdk}\nCompatible: ${report.compatible}\n${report.notes.joinToString("; ")}"
+                if (report.compatible) InstallerEngine.installApk(this, file) { msg -> runOnUiThread { status.append("\n$msg") } }
+            } else toast("APK သို့မဟုတ် APK bundle ZIP ကိုရွေးပါ")
+        } catch (e: Exception) {
+            val diagnosis = DiagnosisEngine.explain(e.message ?: "unknown")
+            status.text = "Error: ${e.message}\nDiagnosis: $diagnosis"
+        }
+    }
+
+    private fun queryName(uri: Uri): String? {
+        contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) return c.getString(0)
+        }
+        return uri.lastPathSegment?.substringAfterLast('/')
+    }
+
     private fun handleIncoming(intent: Intent?) {
         if (intent?.action == Intent.ACTION_SEND) {
+            @Suppress("DEPRECATION")
             val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
-            if (uri != null) status.text = "Incoming shared file detected"
+            if (uri != null) status.text = "Shared file received via Android Sharesheet. Use Install APK / ZIP to process it."
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Keep receiver alive until the user explicitly stops it or Android closes the process.
     }
 
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
