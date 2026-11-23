@@ -6,6 +6,8 @@
 - Installed-app inventory with Android package-visibility permission.
 - Export of an app's base APK and exposed split APK paths into a package-folder ZIP layout.
 - Local Wi-Fi TCP transfer with an 8-digit receiver-generated pairing code.
+- Wi-Fi Direct group creation, peer discovery and connection workflow.
+- Foreground transfer service to keep the receiving socket alive while the app is backgrounded.
 - PIN-derived AES-256-CTR encryption, HMAC-SHA256 authentication/integrity, and receiver acknowledgement.
 - Independent SHA-256 file verification after transfer.
 - APK metadata inspection: package ID, version, min SDK, target SDK, native ABI contents, signer certificate SHA-256 and installed-app signer comparison.
@@ -24,10 +26,10 @@
 GitHub Actions runs unit tests, builds the debug APK and publishes it as a workflow artifact on pushes to `main`.
 
 ## Transfer
-1. Connect both phones to the same trusted Wi-Fi network.
-2. On the receiving phone, press **Start Receiver** and note its IP and 8-digit pairing code.
-3. On the sending phone, enter `IP|PIN` (example: `192.168.1.12|12345678`), press **Send File**, and choose a file.
-4. Both sides derive session keys from the pairing code and a random challenge/salt. The file is encrypted and authenticated in transit.
+1. Use the same trusted Wi-Fi network, or create a Wi-Fi Direct group on the receiving phone and discover/connect from the sending phone. On Android 11 and earlier, location permission and the device Location toggle may be required for peer discovery.
+2. On the receiving phone, press **Start Receiver** and note its IP and 8-digit pairing code. The app keeps the receiver active with a foreground notification.
+3. On the sending phone, enter `IP|PIN` (example: `192.168.1.12|12345678`); after Wi-Fi Direct connects, the group-owner IP is filled automatically. Press **Send File** and choose a file.
+4. Both sides derive session keys from the pairing code and a random challenge/salt. AES-256-CTR encrypts the stream and HMAC-SHA256 authenticates it in transit.
 5. The receiver verifies the decrypted file's SHA-256 and returns an acknowledgement before the sender reports success.
 
 Use a trusted private Wi-Fi network. The pairing code is temporary and should only be shared with the intended receiving phone.
