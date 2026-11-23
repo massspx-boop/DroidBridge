@@ -67,5 +67,11 @@ class TransferService : Service() {
         }
     }
 
+    override fun onDestroy() {
+        TransferEngine.stop()
+        getSharedPreferences("transfer_state", MODE_PRIVATE).edit().remove("receiver_pin").apply()
+        super.onDestroy()
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 }
