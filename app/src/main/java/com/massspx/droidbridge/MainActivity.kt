@@ -81,6 +81,7 @@ class MainActivity : Activity() {
         root.addView(actionButton("Send File") { pickSendFile() })
         root.addView(actionButton("Choose APK / ZIP to install") { pickInstallFile() })
         root.addView(actionButton("Enable APK installation permission") { requestInstallPermission() })
+        root.addView(actionButton("Hybrid AI Diagnosis • API Settings") { showAiSettings() })
 
         root.addView(TextView(this).apply {
             text = "Installed apps • APK Export"
@@ -229,9 +230,31 @@ class MainActivity : Activity() {
                 if (report.compatible) InstallerEngine.installApk(this, file) { msg -> runOnUiThread { status.append("\n$msg") } }
             } else toast("APK သို့မဟုတ် APK bundle ZIP ကိုရွေးပါ")
         } catch (e: Exception) {
-            val diagnosis = DiagnosisEngine.explain(e.message ?: "unknown")
-            status.text = "Error: ${e.message}\nDiagnosis: $diagnosis"
+            val message = e.message ?: "unknown"
+            status.text = "Install error: $message\nRunning diagnosis…"
+            AiDiagnosisEngine.diagnose(this, message) { result ->
+                runOnUiThread { status.text = "Install error: $message\n$result" }
+            }
         }
+    }
+
+    private fun showAiSettings() {
+        val input = EditText(this).apply {
+            hint = "OpenRouter API key (sk-or-...)"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Hybrid AI Diagnosis")
+            .setMessage("Optional. API key ကို Android Keystore ဖြင့် encrypt လုပ်ပြီး ဒီဖုန်းထဲမှာသာ သိမ်းမည်။ Key မထည့်လျှင် Offline diagnosis ကို သုံးမည်။ API အသုံးပြုခမှာ သင့် provider account မှ ကျသင့်နိုင်သည်။")
+            .setView(input)
+            .setPositiveButton("Save key") { _, _ ->
+                try {
+                    AiDiagnosisEngine.saveApiKey(this, input.text.toString().trim())
+                    toast("Encrypted API key saved")
+                } catch (e: Exception) { toast("Key error: ${e.message}") }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun queryName(uri: Uri): String? {
