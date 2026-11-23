@@ -223,11 +223,23 @@ class MainActivity : Activity() {
             contentResolver.openInputStream(uri)?.use { input -> file.outputStream().use { input.copyTo(it) } }
                 ?: throw IllegalStateException("ဖိုင်ဖတ်မရပါ")
             if (name.endsWith(".zip", true)) {
-                InstallerEngine.installBundle(this, file) { msg -> runOnUiThread { status.text = msg } }
+                InstallerEngine.installBundle(this, file) { msg ->
+                    if (msg.contains("error", true) || msg.contains("failed", true)) {
+                        AiDiagnosisEngine.diagnose(this, msg) { diagnosis ->
+                            runOnUiThread { status.text = "$msg\n$diagnosis" }
+                        }
+                    } else runOnUiThread { status.text = msg }
+                }
             } else if (name.endsWith(".apk", true)) {
                 val report = ApkCompatibility.inspect(this, file)
                 status.text = "Package: ${report.packageName}\nVersion: ${report.versionName}\nminSdk: ${report.minSdk} • targetSdk: ${report.targetSdk}\nCompatible: ${report.compatible}\n${report.notes.joinToString("; ")}"
-                if (report.compatible) InstallerEngine.installApk(this, file) { msg -> runOnUiThread { status.append("\n$msg") } }
+                if (report.compatible) InstallerEngine.installApk(this, file) { msg ->
+                    if (msg.contains("error", true) || msg.contains("failed", true)) {
+                        AiDiagnosisEngine.diagnose(this, msg) { diagnosis ->
+                            runOnUiThread { status.append("\n$msg\n$diagnosis") }
+                        }
+                    } else runOnUiThread { status.append("\n$msg") }
+                }
             } else toast("APK သို့မဟုတ် APK bundle ZIP ကိုရွေးပါ")
         } catch (e: Exception) {
             val message = e.message ?: "unknown"
